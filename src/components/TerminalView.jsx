@@ -165,15 +165,28 @@ export default function TerminalView({ thread, project, isRunning }) {
     // Mark as opened so future output goes directly to term.write
     inst.markOpened();
 
-    // Fit to container and scroll to bottom (delay to let xterm fully render after re-attach)
+    // Wait for xterm to finish rendering, then scroll to bottom
+    let settling = true;
+    let renderTimer = null;
+    const renderListener = term.onRender(() => {
+      // Debounce: scroll after rendering stops for 50ms
+      clearTimeout(renderTimer);
+      renderTimer = setTimeout(() => {
+        if (settling) {
+          term.scrollToBottom();
+          settling = false;
+          renderListener.dispose();
+        }
+      }, 50);
+    });
+
+    // Fit to container — triggers render, which triggers scroll via onRender
     requestAnimationFrame(() => {
       try {
         fitAddon.fit();
         const { cols, rows } = term;
         window.api.pty.resize(thread.id, cols, rows);
-      } catch (e) { /* ignore fit errors */ }
-      // Scroll after xterm finishes re-rendering
-      setTimeout(() => term.scrollToBottom(), 150);
+      } catch (e) { /* ignore */ }
     });
 
     // Replay buffer from pty-host (catches output from before this xterm instance existed)
@@ -194,17 +207,28 @@ export default function TerminalView({ thread, project, isRunning }) {
     });
     observer.observe(containerRef.current);
 
-    // Show/hide scroll-to-bottom button
-    const scrollListener = term.onScroll(() => {
-      const isAtBottom = term.buffer.active.viewportY >= term.buffer.active.baseY;
-      setShowScrollBtn(!isAtBottom);
-    });
+    // Check if at bottom — used by both scroll listeners
+    const checkScrollPosition = () => {
+      const atBottom = term.buffer.active.viewportY >= term.buffer.active.baseY;
+      setShowScrollBtn(!atBottom);
+    };
+
+    // xterm onScroll — fires on programmatic scroll and some user scroll
+    const scrollListener = term.onScroll(checkScrollPosition);
+
+    // Wheel event on xterm viewport — catches trackpad/mouse wheel reliably
+    const viewportEl = containerRef.current.querySelector('.xterm-viewport');
+    const onWheel = () => setTimeout(checkScrollPosition, 50);
+    if (viewportEl) viewportEl.addEventListener('wheel', onWheel, { passive: true });
 
     term.focus();
 
     return () => {
       observer.disconnect();
       scrollListener.dispose();
+      renderListener.dispose();
+      clearTimeout(renderTimer);
+      if (viewportEl) viewportEl.removeEventListener('wheel', onWheel);
     };
   }, [thread.id]);
 
