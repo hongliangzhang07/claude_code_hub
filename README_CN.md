@@ -27,6 +27,23 @@ curl -fsSL https://raw.githubusercontent.com/hongliangzhang07/claude_code_hub/ma
   ```bash
   npm install -g @anthropic-ai/claude-code
   ```
+- 首次在终端运行 `claude` 完成登录认证
+
+## 安装后注意
+
+- 如果 macOS 提示"已损坏"或"无法验证开发者"，执行：
+  ```bash
+  xattr -cr /Applications/Claude\ Code\ Hub.app
+  ```
+- 或者 **右键 → 打开**，在弹窗中点击"打开"
+
+## 使用技巧
+
+- 点击左上角文件夹图标添加项目
+- 每个项目下点 `+` 创建新的 Claude Code 会话
+- **右键**会话可以重命名或删除
+- 向上滚动后右下角会出现箭头按钮，点击回到底部
+- 会话支持自动恢复，重启应用后会自动续上之前的对话
 
 ## 本地开发
 

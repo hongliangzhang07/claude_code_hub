@@ -27,6 +27,23 @@ Automatically detects Mac architecture (Intel / Apple Silicon), downloads the ma
   ```bash
   npm install -g @anthropic-ai/claude-code
   ```
+- Run `claude` in terminal once to complete authentication
+
+## Post-Install Notes
+
+- If macOS says the app is "damaged" or "can't be opened", run:
+  ```bash
+  xattr -cr /Applications/Claude\ Code\ Hub.app
+  ```
+- Alternatively, **right-click → Open** and click "Open" in the dialog
+
+## Usage Tips
+
+- Click the folder icon (top-left) to add a project
+- Click `+` under a project to create a new Claude Code session
+- **Right-click** a session to rename or delete it
+- Scroll up to see history; a floating arrow button appears to jump back to the bottom
+- Sessions auto-resume — restart the app and conversations pick up where they left off
 
 ## Local Development
 
