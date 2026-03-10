@@ -62,10 +62,8 @@ function getOrCreateTerminal(threadId) {
         if (sel) navigator.clipboard.writeText(sel);
         return false;
       }
+      // Cmd+V: let xterm handle paste natively via browser paste event
       if (e.key === 'v') {
-        navigator.clipboard.readText().then((text) => {
-          if (text) window.api.pty.write(threadId, text);
-        });
         return false;
       }
     }
@@ -76,15 +74,19 @@ function getOrCreateTerminal(threadId) {
   let pendingWrites = [];
   let isOpened = false;
 
-  // Auto-scroll: true by default, paused only by user wheel-up
-  let autoScroll = true;
-
-  // Listen for output globally
+  // Listen for output globally — always scroll to bottom
+  let rafId = null;
   const unsubOutput = window.api.pty.onOutput((id, data) => {
     if (id === threadId) {
       if (isOpened) {
         term.write(data, () => {
-          if (autoScroll) term.scrollToBottom();
+          term.scrollToBottom();
+          if (inst.onScrollCheck) inst.onScrollCheck();
+        });
+        // Second scroll after xterm finishes rendering the full batch
+        cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
+          term.scrollToBottom();
           if (inst.onScrollCheck) inst.onScrollCheck();
         });
       } else {
@@ -93,9 +95,8 @@ function getOrCreateTerminal(threadId) {
     }
   });
 
-  // When user types, re-enable auto-scroll (they're interacting)
+  // Send input to PTY
   term.onData((data) => {
-    autoScroll = true;
     window.api.pty.write(threadId, data);
   });
 
@@ -106,8 +107,6 @@ function getOrCreateTerminal(threadId) {
     pendingWrites,
     needsBufferReplay: true,
     onScrollCheck: null,
-    get autoScroll() { return autoScroll; },
-    set autoScroll(v) { autoScroll = v; },
     markOpened() {
       isOpened = true;
       if (pendingWrites.length > 0) {
@@ -156,7 +155,6 @@ export default function TerminalView({ thread, project, isRunning }) {
 
     // Reset state on switch
     setShowScrollBtn(false);
-    inst.autoScroll = true;
     inst.markOpened();
 
     // Force scroll helper
@@ -216,19 +214,10 @@ export default function TerminalView({ thread, project, isRunning }) {
 
     const scrollListener = term.onScroll(checkScrollPosition);
 
-    // Wheel: detect user scrolling up → pause autoScroll; scrolling to bottom → resume
+    // Wheel: detect scroll position for arrow button
     const viewportEl = containerRef.current.querySelector('.xterm-viewport');
-    const onWheel = (e) => {
-      if (e.deltaY < 0) {
-        // Scrolling up → pause auto-scroll
-        inst.autoScroll = false;
-      }
-      // Check after scroll settles
-      setTimeout(() => {
-        const atBottom = term.buffer.active.viewportY >= term.buffer.active.baseY;
-        if (atBottom) inst.autoScroll = true;
-        checkScrollPosition();
-      }, 50);
+    const onWheel = () => {
+      setTimeout(checkScrollPosition, 50);
     };
     if (viewportEl) viewportEl.addEventListener('wheel', onWheel, { passive: true });
 
@@ -247,7 +236,6 @@ export default function TerminalView({ thread, project, isRunning }) {
   const scrollToBottom = () => {
     const inst = terminalInstances.get(thread.id);
     if (inst) {
-      inst.autoScroll = true;
       inst.term.scrollToBottom();
       inst.term.focus();
       setShowScrollBtn(false);

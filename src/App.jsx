@@ -39,6 +39,14 @@ export default function App() {
   // Persist on change
   useEffect(() => {
     if (loaded.current) {
+      // Log threads missing claudeSessionId for debugging
+      for (const p of projects) {
+        for (const t of p.threads) {
+          if (!t.claudeSessionId) {
+            console.warn('[save] thread missing claudeSessionId:', t.id, t.title);
+          }
+        }
+      }
       window.api.store.save({ projects });
     }
   }, [projects]);
@@ -147,6 +155,10 @@ export default function App() {
           resumeId = t.claudeSessionId;
           break;
         }
+      }
+      console.log('[selectThread] threadId:', threadId, 'resumeId:', resumeId);
+      if (!resumeId) {
+        console.warn('[selectThread] WARNING: no claudeSessionId found for thread', threadId, 'projects:', JSON.stringify(projects.map(p => ({ id: p.id, threads: p.threads.map(t => ({ id: t.id, title: t.title, claudeSessionId: t.claudeSessionId })) }))));
       }
       window.api.pty.spawn(threadId, projectCwd, null, null, resumeId).then(() => {
         setRunningThreads((prev) => new Set(prev).add(threadId));

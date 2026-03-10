@@ -544,9 +544,12 @@ body {
 
 .terminal-body {
   height: 100%;
-  padding: 4px;
   background: #ffffff;
   overflow: hidden;
+}
+
+.terminal-body .xterm {
+  padding: 4px;
 }
 
 .terminal-body .xterm {
