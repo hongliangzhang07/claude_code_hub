@@ -187,13 +187,18 @@ export default function Sidebar({
                         <div className="thread-actions">
                           {isRunning && (
                             <button
-                              className="restart-btn"
+                              className="icon-btn icon-btn-small icon-btn-restart"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onRestartClaude(thread.id);
                               }}
                               title="重新启动 Claude"
-                            >启动</button>
+                            >
+                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                <path d="M10 2v3.5H6.5M2 10V6.5h3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                                <path d="M2.5 4.5A4 4 0 017.5 2.1L10 5.5M9.5 7.5A4 4 0 014.5 9.9L2 6.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </button>
                           )}
                           {hasSession && !isRunning && (
                             <span className="session-badge" title={`可恢复: ${thread.claudeSessionId}`}>↻</span>

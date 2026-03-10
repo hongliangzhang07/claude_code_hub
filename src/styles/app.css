@@ -299,26 +299,8 @@ body {
   display: flex;
 }
 
-.restart-btn {
-  font-size: 11px;
-  color: white;
-  background: var(--blue);
-  border: none;
-  border-radius: 4px;
-  padding: 1px 6px;
-  cursor: pointer;
-  flex-shrink: 0;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-
-.thread-item:hover .restart-btn,
-.thread-item.active .restart-btn {
-  opacity: 1;
-}
-
-.restart-btn:hover {
-  filter: brightness(1.1);
+.icon-btn-restart {
+  color: var(--blue);
 }
 
 .session-badge {

@@ -50,17 +50,13 @@ function getOrCreateTerminal(threadId) {
 
   // Handle macOS shortcuts (Cmd+A, Cmd+C, Cmd+V)
   term.attachCustomKeyEventHandler((e) => {
-    // Backspace/Delete with selection → clear input line (Ctrl+U)
     if ((e.key === 'Backspace' || e.key === 'Delete') && e.type === 'keydown' && term.hasSelection()) {
-      window.api.pty.write(threadId, '\x15'); // Ctrl+U
+      window.api.pty.write(threadId, '\x15');
       term.clearSelection();
       return false;
     }
     if (e.metaKey && e.type === 'keydown') {
-      if (e.key === 'a') {
-        term.selectAll();
-        return false;
-      }
+      if (e.key === 'a') { term.selectAll(); return false; }
       if (e.key === 'c') {
         const sel = term.getSelection();
         if (sel) navigator.clipboard.writeText(sel);
@@ -80,18 +76,16 @@ function getOrCreateTerminal(threadId) {
   let pendingWrites = [];
   let isOpened = false;
 
-  // Track whether user has scrolled up
-  let userScrolledUp = false;
-  term.onScroll(() => {
-    userScrolledUp = term.buffer.active.viewportY < term.buffer.active.baseY;
-  });
+  // Auto-scroll: true by default, paused only by user wheel-up
+  let autoScroll = true;
 
-  // Listen for output globally (always, even before DOM attach)
+  // Listen for output globally
   const unsubOutput = window.api.pty.onOutput((id, data) => {
     if (id === threadId) {
       if (isOpened) {
         term.write(data, () => {
-          if (!userScrolledUp) term.scrollToBottom();
+          if (autoScroll) term.scrollToBottom();
+          if (inst.onScrollCheck) inst.onScrollCheck();
         });
       } else {
         pendingWrites.push(data);
@@ -99,8 +93,9 @@ function getOrCreateTerminal(threadId) {
     }
   });
 
-  // Send input to PTY
+  // When user types, re-enable auto-scroll (they're interacting)
   term.onData((data) => {
+    autoScroll = true;
     window.api.pty.write(threadId, data);
   });
 
@@ -110,9 +105,11 @@ function getOrCreateTerminal(threadId) {
     unsubOutput,
     pendingWrites,
     needsBufferReplay: true,
+    onScrollCheck: null,
+    get autoScroll() { return autoScroll; },
+    set autoScroll(v) { autoScroll = v; },
     markOpened() {
       isOpened = true;
-      // Flush any output that arrived before DOM open
       if (pendingWrites.length > 0) {
         for (const chunk of pendingWrites) {
           term.write(chunk);
@@ -135,7 +132,6 @@ export function destroyTerminal(threadId) {
   }
 }
 
-// Call this BEFORE spawning, so the listener is ready
 export function ensureTerminal(threadId) {
   return getOrCreateTerminal(threadId);
 }
@@ -150,56 +146,54 @@ export default function TerminalView({ thread, project, isRunning }) {
     const inst = getOrCreateTerminal(thread.id);
     const { term, fitAddon } = inst;
 
-    // If terminal is not attached to any DOM, open it
+    // Attach to DOM
     if (!term.element) {
       term.open(containerRef.current);
     } else {
-      // Re-attach: move the terminal element to this container
       containerRef.current.innerHTML = '';
       containerRef.current.appendChild(term.element);
     }
 
-    // Reset scroll button state on thread switch
+    // Reset state on switch
     setShowScrollBtn(false);
-
-    // Mark as opened so future output goes directly to term.write
+    inst.autoScroll = true;
     inst.markOpened();
 
-    // Scroll to bottom after xterm settles
-    let settled = false;
-    const doScroll = () => {
-      if (settled) return;
-      settled = true;
+    // Force scroll helper
+    const forceScroll = () => {
       term.scrollToBottom();
-      // Also force viewport element scroll position
       const vp = containerRef.current?.querySelector('.xterm-viewport');
       if (vp) vp.scrollTop = vp.scrollHeight;
     };
 
-    // Primary: wait for xterm render event
-    let renderTimer = null;
+    // After switch: scroll on every render until rendering stops (debounce 100ms)
+    let settling = true;
+    let settleTimer = null;
     const renderListener = term.onRender(() => {
-      clearTimeout(renderTimer);
-      renderTimer = setTimeout(doScroll, 30);
+      if (settling) {
+        forceScroll();
+        clearTimeout(settleTimer);
+        settleTimer = setTimeout(() => { settling = false; }, 100);
+      }
     });
+    // Fallback: if no render fires at all
+    settleTimer = setTimeout(() => { forceScroll(); settling = false; }, 300);
 
-    // Fallback: if onRender doesn't fire (re-attached terminal), force scroll
-    const fallbackTimer = setTimeout(doScroll, 200);
-
-    // Fit to container — may trigger onRender
+    // Fit to container
     requestAnimationFrame(() => {
       try {
         fitAddon.fit();
         const { cols, rows } = term;
         window.api.pty.resize(thread.id, cols, rows);
       } catch (e) { /* ignore */ }
+      forceScroll();
     });
 
-    // Replay buffer from pty-host (catches output from before this xterm instance existed)
+    // Replay buffer
     if (inst.needsBufferReplay) {
       inst.needsBufferReplay = false;
       window.api.pty.getBuffer(thread.id).then((buf) => {
-        if (buf) term.write(buf, () => term.scrollToBottom());
+        if (buf) term.write(buf, () => forceScroll());
       });
     }
 
@@ -213,18 +207,29 @@ export default function TerminalView({ thread, project, isRunning }) {
     });
     observer.observe(containerRef.current);
 
-    // Check if at bottom — used by both scroll listeners
+    // Scroll position check for button
     const checkScrollPosition = () => {
       const atBottom = term.buffer.active.viewportY >= term.buffer.active.baseY;
       setShowScrollBtn(!atBottom);
     };
+    inst.onScrollCheck = checkScrollPosition;
 
-    // xterm onScroll — fires on programmatic scroll and some user scroll
     const scrollListener = term.onScroll(checkScrollPosition);
 
-    // Wheel event on xterm viewport — catches trackpad/mouse wheel reliably
+    // Wheel: detect user scrolling up → pause autoScroll; scrolling to bottom → resume
     const viewportEl = containerRef.current.querySelector('.xterm-viewport');
-    const onWheel = () => setTimeout(checkScrollPosition, 50);
+    const onWheel = (e) => {
+      if (e.deltaY < 0) {
+        // Scrolling up → pause auto-scroll
+        inst.autoScroll = false;
+      }
+      // Check after scroll settles
+      setTimeout(() => {
+        const atBottom = term.buffer.active.viewportY >= term.buffer.active.baseY;
+        if (atBottom) inst.autoScroll = true;
+        checkScrollPosition();
+      }, 50);
+    };
     if (viewportEl) viewportEl.addEventListener('wheel', onWheel, { passive: true });
 
     term.focus();
@@ -233,8 +238,8 @@ export default function TerminalView({ thread, project, isRunning }) {
       observer.disconnect();
       scrollListener.dispose();
       renderListener.dispose();
-      clearTimeout(renderTimer);
-      clearTimeout(fallbackTimer);
+      clearTimeout(settleTimer);
+      inst.onScrollCheck = null;
       if (viewportEl) viewportEl.removeEventListener('wheel', onWheel);
     };
   }, [thread.id]);
@@ -242,6 +247,7 @@ export default function TerminalView({ thread, project, isRunning }) {
   const scrollToBottom = () => {
     const inst = terminalInstances.get(thread.id);
     if (inst) {
+      inst.autoScroll = true;
       inst.term.scrollToBottom();
       inst.term.focus();
       setShowScrollBtn(false);
