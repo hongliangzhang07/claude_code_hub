@@ -165,22 +165,28 @@ export default function TerminalView({ thread, project, isRunning }) {
     // Mark as opened so future output goes directly to term.write
     inst.markOpened();
 
-    // Wait for xterm to finish rendering, then scroll to bottom
-    let settling = true;
+    // Scroll to bottom after xterm settles
+    let settled = false;
+    const doScroll = () => {
+      if (settled) return;
+      settled = true;
+      term.scrollToBottom();
+      // Also force viewport element scroll position
+      const vp = containerRef.current?.querySelector('.xterm-viewport');
+      if (vp) vp.scrollTop = vp.scrollHeight;
+    };
+
+    // Primary: wait for xterm render event
     let renderTimer = null;
     const renderListener = term.onRender(() => {
-      // Debounce: scroll after rendering stops for 50ms
       clearTimeout(renderTimer);
-      renderTimer = setTimeout(() => {
-        if (settling) {
-          term.scrollToBottom();
-          settling = false;
-          renderListener.dispose();
-        }
-      }, 50);
+      renderTimer = setTimeout(doScroll, 30);
     });
 
-    // Fit to container — triggers render, which triggers scroll via onRender
+    // Fallback: if onRender doesn't fire (re-attached terminal), force scroll
+    const fallbackTimer = setTimeout(doScroll, 200);
+
+    // Fit to container — may trigger onRender
     requestAnimationFrame(() => {
       try {
         fitAddon.fit();
@@ -228,6 +234,7 @@ export default function TerminalView({ thread, project, isRunning }) {
       scrollListener.dispose();
       renderListener.dispose();
       clearTimeout(renderTimer);
+      clearTimeout(fallbackTimer);
       if (viewportEl) viewportEl.removeEventListener('wheel', onWheel);
     };
   }, [thread.id]);
