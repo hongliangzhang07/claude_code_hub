@@ -103,6 +103,11 @@ class SessionManager extends EventEmitter {
     this.host.on('exit', (code) => {
       console.error('[pty-host] exited with code', code);
       this.host = null;
+      // Notify frontend that ALL running sessions are dead
+      for (const id of this.runningSet) {
+        this.emit('exit', id, code);
+      }
+      this.runningSet.clear();
     });
   }
 

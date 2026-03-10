@@ -160,7 +160,11 @@ export default function App() {
       if (!resumeId) {
         console.warn('[selectThread] WARNING: no claudeSessionId found for thread', threadId, 'projects:', JSON.stringify(projects.map(p => ({ id: p.id, threads: p.threads.map(t => ({ id: t.id, title: t.title, claudeSessionId: t.claudeSessionId })) }))));
       }
-      window.api.pty.spawn(threadId, projectCwd, null, null, resumeId).then(() => {
+      // Use fitted terminal size (fit ran during await), fallback to defaults
+      const inst = ensureTerminal(threadId);
+      const cols = inst.term.cols || 120;
+      const rows = inst.term.rows || 30;
+      window.api.pty.spawn(threadId, projectCwd, cols, rows, resumeId).then(() => {
         setRunningThreads((prev) => new Set(prev).add(threadId));
       });
     }
