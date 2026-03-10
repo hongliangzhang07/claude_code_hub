@@ -48,15 +48,51 @@ function getOrCreateTerminal(threadId) {
   term.loadAddon(fitAddon);
   term.loadAddon(new WebLinksAddon());
 
+  // Handle macOS shortcuts (Cmd+A, Cmd+C, Cmd+V)
+  term.attachCustomKeyEventHandler((e) => {
+    // Backspace/Delete with selection → clear input line (Ctrl+U)
+    if ((e.key === 'Backspace' || e.key === 'Delete') && e.type === 'keydown' && term.hasSelection()) {
+      window.api.pty.write(threadId, '\x15'); // Ctrl+U
+      term.clearSelection();
+      return false;
+    }
+    if (e.metaKey && e.type === 'keydown') {
+      if (e.key === 'a') {
+        term.selectAll();
+        return false;
+      }
+      if (e.key === 'c') {
+        const sel = term.getSelection();
+        if (sel) navigator.clipboard.writeText(sel);
+        return false;
+      }
+      if (e.key === 'v') {
+        navigator.clipboard.readText().then((text) => {
+          if (text) window.api.pty.write(threadId, text);
+        });
+        return false;
+      }
+    }
+    return true;
+  });
+
   // Buffer output that arrives before xterm is opened in DOM
   let pendingWrites = [];
   let isOpened = false;
+
+  // Track whether user has scrolled up
+  let userScrolledUp = false;
+  term.onScroll(() => {
+    userScrolledUp = term.buffer.active.viewportY < term.buffer.active.baseY;
+  });
 
   // Listen for output globally (always, even before DOM attach)
   const unsubOutput = window.api.pty.onOutput((id, data) => {
     if (id === threadId) {
       if (isOpened) {
-        term.write(data, () => term.scrollToBottom());
+        term.write(data, () => {
+          if (!userScrolledUp) term.scrollToBottom();
+        });
       } else {
         pendingWrites.push(data);
       }
@@ -123,17 +159,21 @@ export default function TerminalView({ thread, project, isRunning }) {
       containerRef.current.appendChild(term.element);
     }
 
+    // Reset scroll button state on thread switch
+    setShowScrollBtn(false);
+
     // Mark as opened so future output goes directly to term.write
     inst.markOpened();
 
-    // Fit to container and scroll to bottom
+    // Fit to container and scroll to bottom (delay to let xterm fully render after re-attach)
     requestAnimationFrame(() => {
       try {
         fitAddon.fit();
         const { cols, rows } = term;
         window.api.pty.resize(thread.id, cols, rows);
-        term.scrollToBottom();
       } catch (e) { /* ignore fit errors */ }
+      // Scroll after xterm finishes re-rendering
+      setTimeout(() => term.scrollToBottom(), 150);
     });
 
     // Replay buffer from pty-host (catches output from before this xterm instance existed)
