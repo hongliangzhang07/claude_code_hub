@@ -25,7 +25,10 @@ function load() {
 
 function save(data) {
   ensureDir();
-  fs.writeFileSync(STORE_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  // Write to temp file first, then rename atomically to prevent corruption
+  const tmpFile = STORE_FILE + '.tmp';
+  fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2), 'utf-8');
+  fs.renameSync(tmpFile, STORE_FILE);
 }
 
 module.exports = { load, save };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import TerminalView, { destroyTerminal, ensureTerminal } from './components/TerminalView';
 import EmptyState from './components/EmptyState';
