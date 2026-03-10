@@ -344,6 +344,38 @@ body {
 }
 
 /* Confirm Dialog */
+.context-menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+.context-menu {
+  position: fixed;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 4px;
+  min-width: 120px;
+  z-index: 1001;
+}
+
+.context-menu-item {
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.context-menu-item:hover {
+  background: var(--bg-sidebar-hover);
+}
+
+.context-menu-danger {
+  color: var(--red);
+}
+
 .confirm-overlay {
   position: fixed;
   inset: 0;

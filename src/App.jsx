@@ -163,6 +163,18 @@ export default function App() {
     });
   };
 
+  const renameThread = async (projectId, threadId, oldTitle) => {
+    const newTitle = await window.api.inputDialog('重命名会话', '输入新名称', oldTitle);
+    if (!newTitle || newTitle === oldTitle) return;
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === projectId
+          ? { ...p, threads: p.threads.map((t) => t.id === threadId ? { ...t, title: newTitle } : t) }
+          : p
+      )
+    );
+  };
+
   const removeThread = (projectId, threadId) => {
     window.api.pty.stop(threadId);
     destroyTerminal(threadId);
@@ -207,6 +219,7 @@ export default function App() {
           onAddThread={addThread}
           onStopThread={stopThread}
           onRemoveThread={removeThread}
+          onRenameThread={renameThread}
           onRemoveProject={removeProject}
           onAddProject={addProject}
         />

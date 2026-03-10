@@ -72,12 +72,14 @@ export default function Sidebar({
   onSelectThread,
   onAddThread,
   onStopThread,
+  onRenameThread,
   onRemoveThread,
   onRemoveProject,
   onAddProject,
 }) {
   const [collapsed, setCollapsed] = useState({});
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null);
 
   const toggleProject = (id) => {
     setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -170,6 +172,10 @@ export default function Sidebar({
                         key={thread.id}
                         className={`thread-item ${isActive ? 'active' : ''}`}
                         onClick={() => onSelectThread(thread.id, project.cwd)}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setContextMenu({ x: e.clientX, y: e.clientY, projectId: project.id, threadId: thread.id, title: thread.title });
+                        }}
                       >
                         <div className="thread-main">
                           <span className="thread-title">{thread.title}</span>
@@ -216,6 +222,25 @@ export default function Sidebar({
           </div>
         )}
       </div>
+
+      {contextMenu && (
+        <div className="context-menu-overlay" onClick={() => setContextMenu(null)}>
+          <div
+            className="context-menu"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="context-menu-item" onClick={() => {
+              onRenameThread(contextMenu.projectId, contextMenu.threadId, contextMenu.title);
+              setContextMenu(null);
+            }}>重命名</div>
+            <div className="context-menu-item context-menu-danger" onClick={() => {
+              handleRemoveThread(contextMenu.projectId, contextMenu.threadId, contextMenu.title);
+              setContextMenu(null);
+            }}>删除</div>
+          </div>
+        </div>
+      )}
 
       {confirmDelete && (
         <ConfirmDialog
