@@ -19,6 +19,9 @@ Automatically detects Mac architecture (Intel / Apple Silicon), downloads the ma
 - **Embedded terminal** — Full terminal experience with colors, links, and scrollback
 - **Session resume** — Automatically saves Claude session IDs, resume conversations after restart
 - **Environment check** — Detects Node.js and Claude CLI on first launch, offers one-click install
+- **Keyboard shortcuts** — Cmd+A (select all), Cmd+C (copy), Cmd+V (paste), select + Delete to clear input
+- **Auto-scroll** — Terminal auto-scrolls on new output; floating arrow button to jump back to bottom
+- **Right-click context menu** — Rename or delete sessions via right-click
 
 ## Prerequisites
 

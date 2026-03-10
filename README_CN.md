@@ -19,6 +19,9 @@ curl -fsSL https://raw.githubusercontent.com/hongliangzhang07/claude_code_hub/ma
 - **内嵌终端** — 完整的终端体验，支持颜色、链接、滚动回看
 - **会话恢复** — 自动保存 Claude 会话 ID，重启后可恢复对话上下文
 - **环境检查** — 首次启动自动检测 Node.js 和 Claude CLI，支持一键安装依赖
+- **快捷键支持** — Cmd+A（全选）、Cmd+C（复制）、Cmd+V（粘贴）、选中后 Delete 清除输入
+- **自动滚动** — 新输出时自动滚到底部，向上翻阅时右下角出现箭头按钮一键回到底部
+- **右键菜单** — 右键会话可快速重命名或删除
 
 ## 前置依赖
 
