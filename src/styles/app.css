@@ -500,8 +500,14 @@ body {
   color: #dc2626;
 }
 
-.terminal-body {
+.terminal-body-wrapper {
   flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.terminal-body {
+  height: 100%;
   padding: 4px;
   background: #ffffff;
   overflow: hidden;
@@ -509,6 +515,30 @@ body {
 
 .terminal-body .xterm {
   height: 100%;
+}
+
+.scroll-to-bottom-btn {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  opacity: 0.8;
+  transition: opacity 0.15s;
+  z-index: 10;
+}
+
+.scroll-to-bottom-btn:hover {
+  opacity: 1;
 }
 
 /* Empty state */

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
@@ -56,7 +56,7 @@ function getOrCreateTerminal(threadId) {
   const unsubOutput = window.api.pty.onOutput((id, data) => {
     if (id === threadId) {
       if (isOpened) {
-        term.write(data);
+        term.write(data, () => term.scrollToBottom());
       } else {
         pendingWrites.push(data);
       }
@@ -82,6 +82,7 @@ function getOrCreateTerminal(threadId) {
           term.write(chunk);
         }
         pendingWrites.length = 0;
+        term.scrollToBottom();
       }
     },
   };
@@ -105,6 +106,7 @@ export function ensureTerminal(threadId) {
 
 export default function TerminalView({ thread, project, isRunning }) {
   const containerRef = useRef(null);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -124,12 +126,13 @@ export default function TerminalView({ thread, project, isRunning }) {
     // Mark as opened so future output goes directly to term.write
     inst.markOpened();
 
-    // Fit to container
+    // Fit to container and scroll to bottom
     requestAnimationFrame(() => {
       try {
         fitAddon.fit();
         const { cols, rows } = term;
         window.api.pty.resize(thread.id, cols, rows);
+        term.scrollToBottom();
       } catch (e) { /* ignore fit errors */ }
     });
 
@@ -137,7 +140,7 @@ export default function TerminalView({ thread, project, isRunning }) {
     if (inst.needsBufferReplay) {
       inst.needsBufferReplay = false;
       window.api.pty.getBuffer(thread.id).then((buf) => {
-        if (buf) term.write(buf);
+        if (buf) term.write(buf, () => term.scrollToBottom());
       });
     }
 
@@ -151,12 +154,28 @@ export default function TerminalView({ thread, project, isRunning }) {
     });
     observer.observe(containerRef.current);
 
+    // Show/hide scroll-to-bottom button
+    const scrollListener = term.onScroll(() => {
+      const isAtBottom = term.buffer.active.viewportY >= term.buffer.active.baseY;
+      setShowScrollBtn(!isAtBottom);
+    });
+
     term.focus();
 
     return () => {
       observer.disconnect();
+      scrollListener.dispose();
     };
   }, [thread.id]);
+
+  const scrollToBottom = () => {
+    const inst = terminalInstances.get(thread.id);
+    if (inst) {
+      inst.term.scrollToBottom();
+      inst.term.focus();
+      setShowScrollBtn(false);
+    }
+  };
 
   return (
     <div className="terminal-container">
@@ -173,7 +192,16 @@ export default function TerminalView({ thread, project, isRunning }) {
           </span>
         </div>
       </div>
-      <div className="terminal-body" ref={containerRef} />
+      <div className="terminal-body-wrapper">
+        <div className="terminal-body" ref={containerRef} />
+        {showScrollBtn && (
+          <button className="scroll-to-bottom-btn" onClick={scrollToBottom} title="回到底部">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 3v10M4 9l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        )}
+      </div>
     </div>
   );
 }
