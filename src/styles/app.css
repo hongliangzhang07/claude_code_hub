@@ -303,6 +303,19 @@ body {
   color: var(--blue);
 }
 
+.auto-confirm-badge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+  border-radius: 3px;
+  vertical-align: middle;
+  line-height: 16px;
+}
+
 .session-badge {
   font-size: 12px;
   color: var(--blue);

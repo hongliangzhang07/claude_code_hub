@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld('api', {
   selectDirectory: () => ipcRenderer.invoke('dialog:selectDirectory'),
   inputDialog: (title, label, defaultValue) => ipcRenderer.invoke('dialog:input', title, label, defaultValue),
   pty: {
-    spawn: (threadId, cwd, cols, rows, resumeSessionId) => ipcRenderer.invoke('pty:spawn', threadId, cwd, cols, rows, resumeSessionId),
+    spawn: (threadId, cwd, cols, rows, resumeSessionId, autoConfirm) => ipcRenderer.invoke('pty:spawn', threadId, cwd, cols, rows, resumeSessionId, autoConfirm),
     getBuffer: (threadId) => ipcRenderer.invoke('pty:getBuffer', threadId),
     write: (threadId, data) => ipcRenderer.invoke('pty:write', threadId, data),
     resize: (threadId, cols, rows) => ipcRenderer.invoke('pty:resize', threadId, cols, rows),

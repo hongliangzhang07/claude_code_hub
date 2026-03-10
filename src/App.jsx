@@ -103,7 +103,7 @@ export default function App() {
     }
   };
 
-  const addThread = async (projectId) => {
+  const addThread = async (projectId, autoConfirm = false) => {
     const title = await window.api.inputDialog('新建会话', '输入会话名称', '');
     if (!title) return;
     const proj = projects.find((p) => p.id === projectId);
@@ -113,6 +113,7 @@ export default function App() {
       cwd: proj ? proj.cwd : '',
       createdAt: Date.now(),
       lastActiveAt: Date.now(),
+      autoConfirm,
     };
     setProjects((prev) =>
       prev.map((p) =>
@@ -126,7 +127,7 @@ export default function App() {
     if (proj) {
       // Ensure terminal listener is ready before spawn
       ensureTerminal(thread.id);
-      window.api.pty.spawn(thread.id, proj.cwd).then(() => {
+      window.api.pty.spawn(thread.id, proj.cwd, null, null, null, autoConfirm).then(() => {
         setRunningThreads((prev) => new Set(prev).add(thread.id));
       });
     }
@@ -164,7 +165,13 @@ export default function App() {
       const inst = ensureTerminal(threadId);
       const cols = inst.term.cols || 120;
       const rows = inst.term.rows || 30;
-      window.api.pty.spawn(threadId, projectCwd, cols, rows, resumeId).then(() => {
+      // Find autoConfirm mode for this thread
+      let autoConfirm = false;
+      for (const p of projects) {
+        const t = p.threads.find((t) => t.id === threadId);
+        if (t) { autoConfirm = !!t.autoConfirm; break; }
+      }
+      window.api.pty.spawn(threadId, projectCwd, cols, rows, resumeId, autoConfirm).then(() => {
         setRunningThreads((prev) => new Set(prev).add(threadId));
       });
     }

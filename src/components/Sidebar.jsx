@@ -81,6 +81,7 @@ export default function Sidebar({
   const [collapsed, setCollapsed] = useState({});
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
+  const [newThreadMenu, setNewThreadMenu] = useState(null);
 
   const toggleProject = (id) => {
     setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -143,7 +144,11 @@ export default function Sidebar({
                 <div className="project-actions">
                   <button
                     className="icon-btn"
-                    onClick={(e) => { e.stopPropagation(); onAddThread(project.id); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setNewThreadMenu({ projectId: project.id, x: rect.left, y: rect.bottom + 4 });
+                    }}
                     title="新建会话"
                   >
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -179,7 +184,10 @@ export default function Sidebar({
                         }}
                       >
                         <div className="thread-main">
-                          <span className="thread-title">{thread.title}</span>
+                          <span className="thread-title">
+                            {thread.title}
+                            {thread.autoConfirm && <span className="auto-confirm-badge" title="自动确认模式">Y</span>}
+                          </span>
                           <span className="thread-time">
                             {timeAgo(thread.lastActiveAt || thread.createdAt)}
                           </span>
@@ -238,6 +246,25 @@ export default function Sidebar({
           </div>
         )}
       </div>
+
+      {newThreadMenu && (
+        <div className="context-menu-overlay" onClick={() => setNewThreadMenu(null)}>
+          <div
+            className="context-menu"
+            style={{ top: newThreadMenu.y, left: newThreadMenu.x }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="context-menu-item" onClick={() => {
+              onAddThread(newThreadMenu.projectId, false);
+              setNewThreadMenu(null);
+            }}>普通会话</div>
+            <div className="context-menu-item" onClick={() => {
+              onAddThread(newThreadMenu.projectId, true);
+              setNewThreadMenu(null);
+            }}>自动确认会话</div>
+          </div>
+        </div>
+      )}
 
       {contextMenu && (
         <div className="context-menu-overlay" onClick={() => setContextMenu(null)}>

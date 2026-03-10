@@ -111,9 +111,9 @@ function registerIPC() {
   });
 
   // Terminal process management — use arrow functions to always reference current sessionManager
-  ipcMain.handle('pty:spawn', (_, threadId, cwd, cols, rows, resumeSessionId) => {
+  ipcMain.handle('pty:spawn', (_, threadId, cwd, cols, rows, resumeSessionId, autoConfirm) => {
     ensureSessionManager();
-    return sessionManager.spawnSession(threadId, cwd, cols, rows, resumeSessionId);
+    return sessionManager.spawnSession(threadId, cwd, cols, rows, resumeSessionId, autoConfirm);
   });
   ipcMain.handle('pty:write', (_, threadId, data) => {
     ensureSessionManager();

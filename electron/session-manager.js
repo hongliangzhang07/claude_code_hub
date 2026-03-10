@@ -171,7 +171,7 @@ class SessionManager extends EventEmitter {
     }
   }
 
-  spawnSession(threadId, cwd, cols, rows, resumeSessionId) {
+  spawnSession(threadId, cwd, cols, rows, resumeSessionId, autoConfirm) {
     return new Promise((resolve) => {
       this.pendingCallbacks.set('spawn_' + threadId, (msg) => {
         resolve({ success: msg.success, error: msg.error });
@@ -184,6 +184,7 @@ class SessionManager extends EventEmitter {
         rows,
         env: { CLAUDECODE: '' },
         resumeSessionId,
+        autoConfirm: !!autoConfirm,
       });
     });
   }

@@ -88,7 +88,7 @@ function captureSessionIdFromHistory(id, cwd, baselineIds) {
 function handleMessage(msg) {
   switch (msg.action) {
     case 'spawn': {
-      const { id, cwd, cols, rows, env, resumeSessionId } = msg;
+      const { id, cwd, cols, rows, env, resumeSessionId, autoConfirm } = msg;
       try {
         // Snapshot current session IDs BEFORE spawning
         const baselineIds = readSessionIdsFromHistory(cwd);
@@ -119,11 +119,12 @@ function handleMessage(msg) {
         }
 
         // Auto-launch claude with resume if available
+        const yesFlag = autoConfirm ? ' --yes' : '';
         setTimeout(() => {
           if (resumeSessionId) {
-            proc.write('claude --resume ' + resumeSessionId + '\r');
+            proc.write('claude --resume ' + resumeSessionId + yesFlag + '\r');
           } else {
-            proc.write('claude\r');
+            proc.write('claude' + yesFlag + '\r');
           }
           // Start polling history file for NEW session ID
           if (!resumeSessionId) {
