@@ -219,6 +219,27 @@ function showSetupWindow(parentWindow, missing) {
   });
 }
 
+function checkClaudeHud() {
+  try {
+    const shellPath = getShellPath();
+    const output = execSync(`PATH="${shellPath}" claude plugins list`, { encoding: 'utf-8', timeout: 10000 });
+    return output.includes('claude-hud');
+  } catch (e) {
+    return false;
+  }
+}
+
+function installClaudeHud() {
+  try {
+    const shellPath = getShellPath();
+    execSync(`PATH="${shellPath}" claude plugins install claude-hud`, { encoding: 'utf-8', timeout: 60000 });
+    return true;
+  } catch (e) {
+    console.error('[preflight] claude-hud install failed:', e.message);
+    return false;
+  }
+}
+
 async function runPreflight(parentWindow) {
   const nodePath = checkNode();
   const claudePath = checkClaude();
@@ -228,6 +249,11 @@ async function runPreflight(parentWindow) {
   if (!claudePath) missing.push('claude');
 
   if (missing.length === 0) {
+    // Auto-install claude-hud plugin if not present
+    if (!checkClaudeHud()) {
+      console.log('[preflight] Installing claude-hud plugin...');
+      installClaudeHud();
+    }
     return { ok: true, nodePath, claudePath };
   }
 
@@ -237,6 +263,12 @@ async function runPreflight(parentWindow) {
   // Re-check after install
   const nodePathAfter = checkNode();
   const claudePathAfter = checkClaude();
+
+  // Auto-install claude-hud if claude is now available
+  if (claudePathAfter && !checkClaudeHud()) {
+    console.log('[preflight] Installing claude-hud plugin...');
+    installClaudeHud();
+  }
 
   return {
     ok: !!nodePathAfter && !!claudePathAfter,

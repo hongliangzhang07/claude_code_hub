@@ -163,6 +163,20 @@ export default function App() {
     });
   };
 
+  const restartClaude = async (threadId) => {
+    // Find the thread's claudeSessionId for resume
+    let resumeId = null;
+    for (const p of projects) {
+      const t = p.threads.find((t) => t.id === threadId);
+      if (t && t.claudeSessionId) {
+        resumeId = t.claudeSessionId;
+        break;
+      }
+    }
+    const cmd = resumeId ? `claude --resume ${resumeId}` : 'claude';
+    window.api.pty.write(threadId, cmd + '\r');
+  };
+
   const renameThread = async (projectId, threadId, oldTitle) => {
     const newTitle = await window.api.inputDialog('重命名会话', '输入新名称', oldTitle);
     if (!newTitle || newTitle === oldTitle) return;
@@ -219,6 +233,7 @@ export default function App() {
           onAddThread={addThread}
           onStopThread={stopThread}
           onRemoveThread={removeThread}
+          onRestartClaude={restartClaude}
           onRenameThread={renameThread}
           onRemoveProject={removeProject}
           onAddProject={addProject}

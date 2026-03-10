@@ -72,6 +72,7 @@ export default function Sidebar({
   onSelectThread,
   onAddThread,
   onStopThread,
+  onRestartClaude,
   onRenameThread,
   onRemoveThread,
   onRemoveProject,
@@ -184,6 +185,16 @@ export default function Sidebar({
                           </span>
                         </div>
                         <div className="thread-actions">
+                          {isRunning && (
+                            <button
+                              className="restart-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onRestartClaude(thread.id);
+                              }}
+                              title="重新启动 Claude"
+                            >启动</button>
+                          )}
                           {hasSession && !isRunning && (
                             <span className="session-badge" title={`可恢复: ${thread.claudeSessionId}`}>↻</span>
                           )}
@@ -230,6 +241,10 @@ export default function Sidebar({
             style={{ top: contextMenu.y, left: contextMenu.x }}
             onClick={(e) => e.stopPropagation()}
           >
+            <div className="context-menu-item" onClick={() => {
+              onRestartClaude(contextMenu.threadId);
+              setContextMenu(null);
+            }}>重启 Claude</div>
             <div className="context-menu-item" onClick={() => {
               onRenameThread(contextMenu.projectId, contextMenu.threadId, contextMenu.title);
               setContextMenu(null);
