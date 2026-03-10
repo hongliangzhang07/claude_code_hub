@@ -205,21 +205,21 @@ export default function TerminalView({ thread, project, isRunning }) {
     });
     observer.observe(containerRef.current);
 
-    // Scroll position check for button
+    // Scroll position check for button — use DOM scrollTop for pixel-level accuracy
+    const viewportEl = containerRef.current.querySelector('.xterm-viewport');
     const checkScrollPosition = () => {
-      const atBottom = term.buffer.active.viewportY >= term.buffer.active.baseY;
-      setShowScrollBtn(!atBottom);
+      if (viewportEl) {
+        const atBottom = viewportEl.scrollTop + viewportEl.clientHeight >= viewportEl.scrollHeight - 10;
+        setShowScrollBtn(!atBottom);
+      }
     };
     inst.onScrollCheck = checkScrollPosition;
 
     const scrollListener = term.onScroll(checkScrollPosition);
 
-    // Wheel: detect scroll position for arrow button
-    const viewportEl = containerRef.current.querySelector('.xterm-viewport');
-    const onWheel = () => {
-      setTimeout(checkScrollPosition, 50);
-    };
-    if (viewportEl) viewportEl.addEventListener('wheel', onWheel, { passive: true });
+    // scroll event on viewport: fires on any scroll (trackpad, scrollbar, inertia)
+    const onViewportScroll = () => checkScrollPosition();
+    if (viewportEl) viewportEl.addEventListener('scroll', onViewportScroll, { passive: true });
 
     term.focus();
 
@@ -229,7 +229,7 @@ export default function TerminalView({ thread, project, isRunning }) {
       renderListener.dispose();
       clearTimeout(settleTimer);
       inst.onScrollCheck = null;
-      if (viewportEl) viewportEl.removeEventListener('wheel', onWheel);
+      if (viewportEl) viewportEl.removeEventListener('scroll', onViewportScroll);
     };
   }, [thread.id]);
 

@@ -549,11 +549,8 @@ body {
 }
 
 .terminal-body .xterm {
-  padding: 4px;
-}
-
-.terminal-body .xterm {
   height: 100%;
+  padding: 4px;
 }
 
 .scroll-to-bottom-btn {
