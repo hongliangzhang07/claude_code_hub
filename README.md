@@ -22,6 +22,9 @@ Automatically detects Mac architecture (Intel / Apple Silicon), downloads the ma
 - **Keyboard shortcuts** — Cmd+A (select all), Cmd+C (copy), Cmd+V (paste), select + Delete to clear input
 - **Auto-scroll** — Terminal auto-scrolls on new output; floating arrow button to jump back to bottom
 - **Right-click context menu** — Rename or delete sessions via right-click
+- **Restart Claude** — Restart button to relaunch Claude in any session
+- **Crash-safe storage** — Atomic file writes prevent data corruption on unexpected shutdown
+- **Resilient to sleep/restart** — Sessions auto-recover after screen lock, sleep, or system reboot
 
 ## Prerequisites
 
