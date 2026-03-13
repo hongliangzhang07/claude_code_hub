@@ -177,7 +177,7 @@ export default function Sidebar({
                       <div
                         key={thread.id}
                         className={`thread-item ${isActive ? 'active' : ''}`}
-                        onClick={() => onSelectThread(thread.id, project.cwd)}
+                        onClick={() => onSelectThread(thread.id, project.cwd, thread.claudeSessionId, thread.autoConfirm)}
                         onContextMenu={(e) => {
                           e.preventDefault();
                           setContextMenu({ x: e.clientX, y: e.clientY, projectId: project.id, threadId: thread.id, title: thread.title });

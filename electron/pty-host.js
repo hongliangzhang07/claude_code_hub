@@ -119,7 +119,7 @@ function handleMessage(msg) {
         }
 
         // Auto-launch claude with resume if available
-        const yesFlag = autoConfirm ? ' --yes' : '';
+        const yesFlag = autoConfirm ? ' --dangerously-skip-permissions' : '';
         setTimeout(() => {
           if (resumeSessionId) {
             proc.write('claude --resume ' + resumeSessionId + yesFlag + '\r');
