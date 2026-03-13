@@ -25,6 +25,8 @@ export default function App() {
   const [activeThreadId, setActiveThreadId] = useState(null);
   const [runningThreads, setRunningThreads] = useState(new Set());
   const loaded = useRef(false);
+  const projectsRef = useRef(projects);
+  projectsRef.current = projects;
 
   // Load data on mount
   useEffect(() => {
@@ -149,8 +151,10 @@ export default function App() {
     const running = await window.api.pty.isRunning(threadId);
     if (!running) {
       // Find the thread's saved claudeSessionId for resume
+      // Use ref to get latest projects (avoid stale closure after await)
+      const latestProjects = projectsRef.current;
       let resumeId = null;
-      for (const p of projects) {
+      for (const p of latestProjects) {
         const t = p.threads.find((t) => t.id === threadId);
         if (t && t.claudeSessionId) {
           resumeId = t.claudeSessionId;
@@ -159,7 +163,7 @@ export default function App() {
       }
       console.log('[selectThread] threadId:', threadId, 'resumeId:', resumeId);
       if (!resumeId) {
-        console.warn('[selectThread] WARNING: no claudeSessionId found for thread', threadId, 'projects:', JSON.stringify(projects.map(p => ({ id: p.id, threads: p.threads.map(t => ({ id: t.id, title: t.title, claudeSessionId: t.claudeSessionId })) }))));
+        console.warn('[selectThread] WARNING: no claudeSessionId found for thread', threadId, 'projects:', JSON.stringify(latestProjects.map(p => ({ id: p.id, threads: p.threads.map(t => ({ id: t.id, title: t.title, claudeSessionId: t.claudeSessionId })) }))));
       }
       // Use fitted terminal size (fit ran during await), fallback to defaults
       const inst = ensureTerminal(threadId);
@@ -167,7 +171,7 @@ export default function App() {
       const rows = inst.term.rows || 30;
       // Find autoConfirm mode for this thread
       let autoConfirm = false;
-      for (const p of projects) {
+      for (const p of latestProjects) {
         const t = p.threads.find((t) => t.id === threadId);
         if (t) { autoConfirm = !!t.autoConfirm; break; }
       }

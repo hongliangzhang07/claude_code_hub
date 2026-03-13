@@ -177,11 +177,13 @@ export default function TerminalView({ thread, project, isRunning }) {
     // Fallback: if no render fires at all
     settleTimer = setTimeout(() => { forceScroll(); settling = false; }, 300);
 
-    // Fit to container
+    // Fit to container (subtract 1 row to prevent subpixel overflow)
     requestAnimationFrame(() => {
       try {
         fitAddon.fit();
-        const { cols, rows } = term;
+        const cols = term.cols;
+        const rows = Math.max(1, term.rows - 1);
+        term.resize(cols, rows);
         window.api.pty.resize(thread.id, cols, rows);
       } catch (e) { /* ignore */ }
       forceScroll();
@@ -195,11 +197,13 @@ export default function TerminalView({ thread, project, isRunning }) {
       });
     }
 
-    // Handle resize
+    // Handle resize (subtract 1 row to prevent subpixel overflow)
     const observer = new ResizeObserver(() => {
       try {
         fitAddon.fit();
-        const { cols, rows } = term;
+        const cols = term.cols;
+        const rows = Math.max(1, term.rows - 1);
+        term.resize(cols, rows);
         window.api.pty.resize(thread.id, cols, rows);
       } catch (e) { /* ignore */ }
     });
