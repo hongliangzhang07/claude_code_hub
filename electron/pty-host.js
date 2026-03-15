@@ -5,7 +5,6 @@ const pty = require('node-pty');
 
 const sessions = new Map();      // id -> pty process
 const buffers = new Map();       // id -> output buffer (circular)
-const sessionIds = new Map();    // id -> claude session UUID
 
 const MAX_BUFFER = 200 * 1024;   // 200KB per session
 
@@ -16,14 +15,12 @@ function send(msg) {
 function appendBuffer(id, data) {
   let buf = buffers.get(id) || '';
   buf += data;
-  // Keep last MAX_BUFFER chars
   if (buf.length > MAX_BUFFER) {
     buf = buf.slice(buf.length - MAX_BUFFER);
   }
   buffers.set(id, buf);
 }
 
-const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execSync } = require('child_process');
@@ -34,7 +31,6 @@ try {
   const shell = process.env.SHELL || '/bin/zsh';
   userPath = execSync(`${shell} -ilc "echo \\$PATH"`, { encoding: 'utf-8', timeout: 5000 }).trim();
 } catch (e) {
-  // Fallback: append common paths
   const extra = ['/usr/local/bin', '/opt/homebrew/bin', '/usr/bin', '/bin', '/usr/sbin', '/sbin'];
   const current = new Set(userPath.split(':'));
   for (const p of extra) {
@@ -42,57 +38,11 @@ try {
   }
 }
 
-const HISTORY_FILE = path.join(os.homedir(), '.claude', 'history.jsonl');
-
-// Read all session IDs from history file for a given cwd
-function readSessionIdsFromHistory(cwd) {
-  const ids = [];
-  try {
-    if (!fs.existsSync(HISTORY_FILE)) return ids;
-    const content = fs.readFileSync(HISTORY_FILE, 'utf-8').trim();
-    const lines = content.split('\n');
-    for (const line of lines) {
-      try {
-        const entry = JSON.parse(line);
-        if (entry.sessionId && entry.project === cwd) {
-          ids.push(entry.sessionId);
-        }
-      } catch (e) { /* skip */ }
-    }
-  } catch (e) { /* ignore */ }
-  return ids;
-}
-
-// After claude starts, poll history file for a NEW session ID (not in the baseline)
-function captureSessionIdFromHistory(id, cwd, baselineIds) {
-  let attempts = 0;
-  const baselineSet = new Set(baselineIds);
-  const interval = setInterval(() => {
-    attempts++;
-    if (attempts > 20) { clearInterval(interval); return; }
-    // Already captured from output parsing
-    if (sessionIds.has(id)) { clearInterval(interval); return; }
-    const currentIds = readSessionIdsFromHistory(cwd);
-    // Find a new ID not in baseline
-    for (let i = currentIds.length - 1; i >= 0; i--) {
-      if (!baselineSet.has(currentIds[i])) {
-        sessionIds.set(id, currentIds[i]);
-        send({ type: 'sessionId', id, sessionId: currentIds[i] });
-        clearInterval(interval);
-        return;
-      }
-    }
-  }, 3000);
-}
-
 function handleMessage(msg) {
   switch (msg.action) {
     case 'spawn': {
-      const { id, cwd, cols, rows, env, resumeSessionId, autoConfirm } = msg;
+      const { id, cwd, cols, rows, env, sessionId, isResume, autoConfirm } = msg;
       try {
-        // Snapshot current session IDs BEFORE spawning
-        const baselineIds = readSessionIdsFromHistory(cwd);
-
         const proc = pty.spawn('/bin/zsh', [], {
           name: 'xterm-256color',
           cols: cols || 120,
@@ -113,22 +63,13 @@ function handleMessage(msg) {
 
         sessions.set(id, proc);
 
-        // If resuming, store the sessionId we already know
-        if (resumeSessionId) {
-          sessionIds.set(id, resumeSessionId);
-        }
-
-        // Auto-launch claude with resume if available
+        // Build claude command
         const yesFlag = autoConfirm ? ' --dangerously-skip-permissions' : '';
         setTimeout(() => {
-          if (resumeSessionId) {
-            proc.write('claude --resume ' + resumeSessionId + yesFlag + '\r');
+          if (isResume) {
+            proc.write('claude --resume ' + sessionId + yesFlag + '\r');
           } else {
-            proc.write('claude' + yesFlag + '\r');
-          }
-          // Start polling history file for NEW session ID
-          if (!resumeSessionId) {
-            captureSessionIdFromHistory(id, cwd, baselineIds);
+            proc.write('claude --session-id ' + sessionId + yesFlag + ' "hi"\r');
           }
         }, 500);
 
@@ -164,10 +105,6 @@ function handleMessage(msg) {
     case 'getBuffer': {
       const buf = buffers.get(msg.id) || '';
       send({ type: 'buffer', id: msg.id, data: buf });
-      break;
-    }
-    case 'getSessionId': {
-      send({ type: 'sessionId', id: msg.id, sessionId: sessionIds.get(msg.id) || null });
       break;
     }
   }

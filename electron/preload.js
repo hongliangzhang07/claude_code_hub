@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld('api', {
   selectDirectory: () => ipcRenderer.invoke('dialog:selectDirectory'),
   inputDialog: (title, label, defaultValue) => ipcRenderer.invoke('dialog:input', title, label, defaultValue),
   pty: {
-    spawn: (threadId, cwd, cols, rows, resumeSessionId, autoConfirm) => ipcRenderer.invoke('pty:spawn', threadId, cwd, cols, rows, resumeSessionId, autoConfirm),
+    spawn: (threadId, cwd, cols, rows, sessionId, isResume, autoConfirm) => ipcRenderer.invoke('pty:spawn', threadId, cwd, cols, rows, sessionId, isResume, autoConfirm),
     getBuffer: (threadId) => ipcRenderer.invoke('pty:getBuffer', threadId),
     write: (threadId, data) => ipcRenderer.invoke('pty:write', threadId, data),
     resize: (threadId, cols, rows) => ipcRenderer.invoke('pty:resize', threadId, cols, rows),
@@ -23,11 +23,6 @@ contextBridge.exposeInMainWorld('api', {
       const listener = (_, threadId, code) => callback(threadId, code);
       ipcRenderer.on('pty:exit', listener);
       return () => ipcRenderer.removeListener('pty:exit', listener);
-    },
-    onSessionId: (callback) => {
-      const listener = (_, threadId, sessionId) => callback(threadId, sessionId);
-      ipcRenderer.on('pty:sessionId', listener);
-      return () => ipcRenderer.removeListener('pty:sessionId', listener);
     },
   },
 });

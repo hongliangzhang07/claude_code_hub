@@ -29,11 +29,6 @@ function ensureSessionManager() {
       }
     });
 
-    sessionManager.on('sessionId', (threadId, sessionId) => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('pty:sessionId', threadId, sessionId);
-      }
-    });
   }
 }
 
@@ -111,9 +106,9 @@ function registerIPC() {
   });
 
   // Terminal process management — use arrow functions to always reference current sessionManager
-  ipcMain.handle('pty:spawn', (_, threadId, cwd, cols, rows, resumeSessionId, autoConfirm) => {
+  ipcMain.handle('pty:spawn', (_, threadId, cwd, cols, rows, sessionId, isResume, autoConfirm) => {
     ensureSessionManager();
-    return sessionManager.spawnSession(threadId, cwd, cols, rows, resumeSessionId, autoConfirm);
+    return sessionManager.spawnSession(threadId, cwd, cols, rows, sessionId, isResume, autoConfirm);
   });
   ipcMain.handle('pty:write', (_, threadId, data) => {
     ensureSessionManager();

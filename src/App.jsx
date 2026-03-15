@@ -26,11 +26,17 @@ export default function App() {
   const [runningThreads, setRunningThreads] = useState(new Set());
   const loaded = useRef(false);
 
-  // Load data on mount
+  // Load data on mount, migrate threads missing sessionId
   useEffect(() => {
     window.api.store.load().then((data) => {
       if (data.projects && data.projects.length > 0) {
-        setProjects(data.projects);
+        const migrated = data.projects.map((p) => ({
+          ...p,
+          threads: p.threads.map((t) =>
+            t.claudeSessionId ? t : { ...t, claudeSessionId: crypto.randomUUID() }
+          ),
+        }));
+        setProjects(migrated);
       }
       loaded.current = true;
     });
@@ -39,14 +45,6 @@ export default function App() {
   // Persist on change
   useEffect(() => {
     if (loaded.current) {
-      // Log threads missing claudeSessionId for debugging
-      for (const p of projects) {
-        for (const t of p.threads) {
-          if (!t.claudeSessionId) {
-            console.warn('[save] thread missing claudeSessionId:', t.id, t.title);
-          }
-        }
-      }
       window.api.store.save({ projects });
     }
   }, [projects]);
@@ -63,20 +61,6 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  // Listen for claude session ID capture
-  useEffect(() => {
-    const unsub = window.api.pty.onSessionId((threadId, sessionId) => {
-      setProjects((prev) =>
-        prev.map((p) => ({
-          ...p,
-          threads: p.threads.map((t) =>
-            t.id === threadId ? { ...t, claudeSessionId: sessionId } : t
-          ),
-        }))
-      );
-    });
-    return () => unsub();
-  }, []);
 
   const addProject = async () => {
     const cwd = await window.api.selectDirectory();
@@ -107,6 +91,7 @@ export default function App() {
     const title = await window.api.inputDialog('新建会话', '输入会话名称', '');
     if (!title) return;
     const proj = projects.find((p) => p.id === projectId);
+    const sessionId = crypto.randomUUID();
     const thread = {
       id: genId(),
       title,
@@ -114,6 +99,7 @@ export default function App() {
       createdAt: Date.now(),
       lastActiveAt: Date.now(),
       autoConfirm,
+      claudeSessionId: sessionId,
     };
     setProjects((prev) =>
       prev.map((p) =>
@@ -125,9 +111,8 @@ export default function App() {
     setActiveThreadId(thread.id);
 
     if (proj) {
-      // Ensure terminal listener is ready before spawn
       ensureTerminal(thread.id);
-      window.api.pty.spawn(thread.id, proj.cwd, null, null, null, autoConfirm).then(() => {
+      window.api.pty.spawn(thread.id, proj.cwd, null, null, sessionId, false, autoConfirm).then(() => {
         setRunningThreads((prev) => new Set(prev).add(thread.id));
       });
     }
@@ -146,24 +131,11 @@ export default function App() {
     );
     const running = await window.api.pty.isRunning(threadId);
     if (!running) {
-      // If sessionId missing, re-read from data.json as fallback
-      let resumeId = claudeSessionId || null;
-      if (!resumeId) {
-        const stored = await window.api.store.load();
-        if (stored.projects) {
-          for (const p of stored.projects) {
-            const t = p.threads.find((t) => t.id === threadId);
-            if (t && t.claudeSessionId) {
-              resumeId = t.claudeSessionId;
-              break;
-            }
-          }
-        }
-      }
       const inst = ensureTerminal(threadId);
       const cols = inst.term.cols || 120;
       const rows = inst.term.rows || 30;
-      window.api.pty.spawn(threadId, projectCwd, cols, rows, resumeId, !!autoConfirm).then(() => {
+      // sessionId is always bound at creation, always resume
+      window.api.pty.spawn(threadId, projectCwd, cols, rows, claudeSessionId, true, !!autoConfirm).then(() => {
         setRunningThreads((prev) => new Set(prev).add(threadId));
       });
     }
@@ -179,17 +151,13 @@ export default function App() {
   };
 
   const restartClaude = async (threadId) => {
-    // Find the thread's claudeSessionId for resume
-    let resumeId = null;
     for (const p of projects) {
       const t = p.threads.find((t) => t.id === threadId);
       if (t && t.claudeSessionId) {
-        resumeId = t.claudeSessionId;
-        break;
+        window.api.pty.write(threadId, `claude --resume ${t.claudeSessionId}\r`);
+        return;
       }
     }
-    const cmd = resumeId ? `claude --resume ${resumeId}` : 'claude';
-    window.api.pty.write(threadId, cmd + '\r');
   };
 
   const renameThread = async (projectId, threadId, oldTitle) => {

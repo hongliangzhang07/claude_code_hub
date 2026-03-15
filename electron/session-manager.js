@@ -157,21 +157,10 @@ class SessionManager extends EventEmitter {
         }
         break;
       }
-      case 'sessionId': {
-        if (msg.sessionId) {
-          this.emit('sessionId', msg.id, msg.sessionId);
-        }
-        const sidCb = this.pendingCallbacks.get('sessionId_' + msg.id);
-        if (sidCb) {
-          this.pendingCallbacks.delete('sessionId_' + msg.id);
-          sidCb(msg.sessionId);
-        }
-        break;
-      }
     }
   }
 
-  spawnSession(threadId, cwd, cols, rows, resumeSessionId, autoConfirm) {
+  spawnSession(threadId, cwd, cols, rows, sessionId, isResume, autoConfirm) {
     return new Promise((resolve) => {
       this.pendingCallbacks.set('spawn_' + threadId, (msg) => {
         resolve({ success: msg.success, error: msg.error });
@@ -183,7 +172,8 @@ class SessionManager extends EventEmitter {
         cols,
         rows,
         env: { CLAUDECODE: '' },
-        resumeSessionId,
+        sessionId,
+        isResume: !!isResume,
         autoConfirm: !!autoConfirm,
       });
     });
